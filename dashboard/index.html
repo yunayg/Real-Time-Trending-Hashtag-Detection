@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trending Hashtags</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f4f4f1;
+    --surface: #fcfcfb;
+    --surface-2: #f0efec;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --hairline: #e1e0d9;
+    --border: rgba(11, 11, 11, 0.10);
+    --accent: #2a78d6;
+    --accent-strong: #1c5cab;
+    --accent-soft: rgba(42, 120, 214, 0.10);
+    --accent-glow: rgba(42, 120, 214, 0.18);
+    --track: #ebeae5;
+    --up: #006300;
+    --down: #d03b3b;
+    --good: #0ca30c;
+    --critical: #d03b3b;
+    --shadow: 0 1px 2px rgba(11, 11, 11, .04), 0 6px 24px rgba(11, 11, 11, .05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --surface-2: #232322;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --hairline: #2c2c2a;
+      --border: rgba(255, 255, 255, 0.10);
+      --accent: #3987e5;
+      --accent-strong: #86b6ef;
+      --accent-soft: rgba(57, 135, 229, 0.14);
+      --accent-glow: rgba(57, 135, 229, 0.22);
+      --track: #2c2c2a;
+      --up: #0ca30c;
+      --down: #e66767;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 28px rgba(0, 0, 0, .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232322;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --hairline: #2c2c2a;
+    --border: rgba(255, 255, 255, 0.10);
+    --accent: #3987e5;
+    --accent-strong: #86b6ef;
+    --accent-soft: rgba(57, 135, 229, 0.14);
+    --accent-glow: rgba(57, 135, 229, 0.22);
+    --track: #2c2c2a;
+    --up: #0ca30c;
+    --down: #e66767;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 28px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text-primary);
+    background: radial-gradient(1200px 420px at 15% -10%, var(--accent-glow), transparent 70%), var(--page);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 28px 16px 48px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+  .muted { color: var(--text-muted); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* header */
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; flex: none;
+    background: var(--accent); color: #fff; font-size: 24px; font-weight: 700; box-shadow: 0 6px 18px var(--accent-glow);
+  }
+  h1 { font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--text-secondary); margin: 2px 0 0; font-size: 14px; }
+  .controls { display: flex; align-items: center; gap: 10px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); white-space: nowrap;
+  }
+  .pulse { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+  .pulse::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--good);
+    animation: ping 1.8s ease-out infinite;
+  }
+  .pill.stale .pulse { background: var(--critical); }
+  .pill.stale .pulse::after { border-color: var(--critical); }
+  @keyframes ping { from { transform: scale(.5); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
+  .ring { width: 18px; height: 18px; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 3; }
+  .ring .bg { stroke: var(--track); }
+  .ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  .sysdot { width: 8px; height: 8px; border-radius: 2px; background: var(--good); flex: none; }
+  #system.busy .sysdot { background: #fab219; animation: blink 1s ease-in-out infinite; }
+  #system.down .sysdot { background: var(--critical); }
+  @keyframes blink { 50% { opacity: .3; } }
+  .switch { cursor: pointer; font: inherit; font-size: 13px; }
+  .switch:hover { background: var(--surface-2); }
+  .switch:disabled { cursor: progress; opacity: .7; }
+  .switch .track {
+    position: relative; width: 30px; height: 18px; border-radius: 999px; flex: none;
+    background: var(--track); transition: background .2s;
+  }
+  .switch .knob {
+    position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .2s;
+  }
+  .switch[aria-checked="true"] .track { background: var(--good); }
+  .switch[aria-checked="true"] .knob { transform: translateX(12px); }
+  .switch[aria-checked="true"] { color: var(--text-primary); }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-secondary); cursor: pointer; display: grid; place-items: center; font-size: 16px;
+  }
+  .icon-btn:hover { color: var(--text-primary); background: var(--surface-2); }
+
+  /* pipeline strip */
+  .pipeline { display: flex; align-items: center; gap: 8px; margin: 22px 0 18px; flex-wrap: wrap; }
+  .stage {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); font-size: 13px;
+  }
+  .stage b { font-weight: 600; }
+  .stage span { color: var(--text-muted); }
+  .arrow { color: var(--text-muted); }
+
+  /* top grid */
+  .top { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+  .card { min-width: 0; }
+  svg { max-width: 100%; }
+  .spotlight {
+    position: relative; overflow: hidden; padding: 22px 24px 18px;
+    background: linear-gradient(135deg, var(--accent-soft), transparent 60%), var(--surface);
+  }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-strong); }
+  .spot-tag {
+    font-size: clamp(30px, 5vw, 46px); font-weight: 750; letter-spacing: -0.02em; margin: 6px 0 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .spot-meta { display: flex; gap: 18px; flex-wrap: wrap; color: var(--text-secondary); font-size: 14px; }
+  .spot-meta b { color: var(--text-primary); font-size: 18px; font-weight: 650; margin-right: 4px; }
+  .spot-chart { margin-top: 14px; height: 92px; }
+  .spot-chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .spot-caption { font-size: 12px; color: var(--text-muted); margin-top: 4px; display: flex; justify-content: space-between; gap: 12px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .tile { padding: 16px 16px 12px; display: flex; flex-direction: column; justify-content: space-between; min-height: 120px; }
+  .tile .label { color: var(--text-secondary); font-size: 13px; }
+  .tile .value { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin-top: 2px; }
+  .tile .value small { font-size: 15px; font-weight: 500; color: var(--text-secondary); margin-left: 2px; }
+  .tile svg { width: 100%; height: 34px; display: block; margin-top: 8px; overflow: visible; }
+
+  /* leaderboard */
+  .board { margin-top: 16px; padding: 18px 20px 10px; }
+  .board-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .board h2 { font-size: 16px; font-weight: 650; margin: 0; }
+  .board .caption { color: var(--text-muted); font-size: 13px; margin: 2px 0 0; }
+  .cols, .row {
+    display: grid; grid-template-columns: 44px minmax(150px, 1.1fr) 2fr 70px 132px;
+    align-items: center; gap: 14px;
+  }
+  .cols { font-size: 12px; color: var(--text-muted); padding: 14px 8px 8px; border-bottom: 1px solid var(--hairline); }
+  .cols .r { text-align: right; }
+  #rows { position: relative; }
+  .row { padding: 10px 8px; border-bottom: 1px solid var(--hairline); border-radius: 8px; background: var(--surface); }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: var(--surface-2); }
+  .row.enter { animation: enter .6s ease both; }
+  @keyframes enter { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+  .badge {
+    width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 650; font-size: 14px;
+    color: var(--text-secondary); background: var(--surface-2);
+  }
+  .row[data-rank="1"] .badge { background: var(--accent); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
+  .row[data-rank="2"] .badge, .row[data-rank="3"] .badge { background: var(--accent-soft); color: var(--accent-strong); }
+  .who { min-width: 0; }
+  .tag { font-weight: 650; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .move { font-size: 12px; margin-top: 1px; color: var(--text-muted); white-space: nowrap; }
+  .move.up { color: var(--up); }
+  .move.down { color: var(--down); }
+  .move.new { color: var(--accent-strong); font-weight: 650; letter-spacing: .04em; }
+  .track { height: 12px; border-radius: 0 4px 4px 0; }
+  .bar {
+    height: 100%; width: 0; min-width: 3px; border-radius: 0 4px 4px 0; background: var(--accent);
+    transition: width .7s cubic-bezier(.2, .8, .2, 1);
+  }
+  .row[data-rank="1"] .bar { background: linear-gradient(90deg, var(--accent), var(--accent-strong)); }
+  .count { text-align: right; font-weight: 600; }
+  .spark svg { width: 100%; height: 30px; display: block; overflow: visible; }
+  .empty { color: var(--text-secondary); padding: 36px 8px; text-align: center; }
+
+  footer { margin-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+
+  #tip {
+    position: fixed; pointer-events: none; display: none; z-index: 10; max-width: 270px;
+    background: var(--surface); color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 11px; font-size: 13px; box-shadow: 0 8px 28px rgba(0, 0, 0, .2);
+  }
+  #tip b { display: block; margin-bottom: 3px; }
+  #tip span { color: var(--text-secondary); display: block; }
+
+  @media (max-width: 900px) {
+    .top { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .tile { padding: 12px 12px 10px; min-height: 104px; }
+    .tile .value { font-size: 22px; }
+    .cols, .row { grid-template-columns: 30px minmax(0, 1.4fr) minmax(0, 1fr) 44px; gap: 10px; }
+    .spot-caption .mid { display: none; }
+    .cols .c-spark, .spark { display: none; }
+    .badge { width: 26px; height: 26px; font-size: 13px; }
+    .pipeline .arrow { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">
+      <div class="logo" aria-hidden="true">#</div>
+      <div>
+        <h1>Trending Hashtags</h1>
+        <p class="sub" id="window">Waiting for the first MapReduce run…</p>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="pill" id="status"><span class="pulse"></span><span id="status-text">Connecting…</span></div>
+      <div class="pill" id="system" hidden><span class="sysdot"></span><span id="system-text"></span></div>
+      <div class="pill" title="Time until the next MapReduce run">
+        <svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="bg" cx="10" cy="10" r="8"/><circle class="fg" id="ring" cx="10" cy="10" r="8"/></svg>
+        <span id="next" class="num">–</span>
+      </div>
+      <button class="pill switch" id="producer" role="switch" aria-checked="false" title="Turn the tweet producer on or off">
+        <span class="track" aria-hidden="true"><span class="knob"></span></span>
+        <span id="producer-text">Producer</span>
+      </button>
+      <button class="icon-btn" id="theme" title="Toggle light / dark" aria-label="Toggle light or dark theme">◐</button>
+    </div>
+  </header>
+
+  <nav class="pipeline" aria-label="Pipeline">
+    <div class="stage"><b>Kafka</b><span id="stage-kafka">topic "tweets"</span></div><span class="arrow">→</span>
+    <div class="stage"><b>HDFS</b><span>/tweets/raw</span></div><span class="arrow">→</span>
+    <div class="stage"><b>MapReduce</b><span id="stage-job">5-min window</span></div><span class="arrow">→</span>
+    <div class="stage"><b>Leaderboard</b><span>top 10</span></div>
+  </nav>
+
+  <section class="top">
+    <div class="card spotlight">
+      <div class="eyebrow">#1 right now</div>
+      <div class="spot-tag" id="spot-tag">–</div>
+      <div class="spot-meta">
+        <div><b id="spot-count" class="num">–</b>tweets</div>
+        <div><b id="spot-share" class="num">–</b>of mentions</div>
+        <div><b id="spot-streak" class="num">–</b><span id="spot-streak-label">at the top</span></div>
+      </div>
+      <div class="spot-chart" id="spot-chart"></div>
+      <div class="spot-caption"><span id="spot-from"></span><span class="mid">Tweets per 5-min window, one point per run</span><span>now</span></div>
+    </div>
+    <div class="tiles">
+      <div class="card tile"><div><div class="label">Tweets in window</div><div class="value num" id="t-tweets">–</div></div><svg id="s-tweets"></svg></div>
+      <div class="card tile"><div><div class="label">Hashtag mentions</div><div class="value num" id="t-mentions">–</div></div><svg id="s-mentions"></svg></div>
+      <div class="card tile"><div><div class="label">Distinct hashtags</div><div class="value num" id="t-distinct">–</div></div><svg id="s-distinct"></svg></div>
+      <div class="card tile"><div><div class="label">MapReduce job time</div><div class="value num" id="t-job">–</div></div><svg id="s-job"></svg></div>
+    </div>
+  </section>
+
+  <section class="card board">
+    <div class="board-head">
+      <div>
+        <h2>Top 10 hashtags</h2>
+        <p class="caption">Tweets using each hashtag in the last 5 minutes. Arrows show movement since the previous run.</p>
+      </div>
+    </div>
+    <div class="cols"><span>Rank</span><span>Hashtag</span><span>Tweets in window</span><span></span><span class="c-spark">Last 15 runs</span></div>
+    <div id="rows"><div class="empty">No data yet.</div></div>
+  </section>
+
+  <footer>
+    <span>Sentiment140 + Twitter US Airline Sentiment, replayed as a live stream</span>
+    <span id="foot-updated"></span>
+  </footer>
+</main>
+<div id="tip"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => Number(n).toLocaleString();
+const clock = ms => new Date(ms).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+const SVGNS = "http://www.w3.org/2000/svg";
+const RING = 2 * Math.PI * 8;
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let latest = null;
+
+/* ---------- theme ---------- */
+function setTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+}
+// ?theme=light|dark in the URL wins (handy for projecting), then the saved choice, then the OS
+const urlTheme = new URLSearchParams(location.search).get("theme");
+try { setTheme(urlTheme || localStorage.getItem("theme")); } catch (e) { setTheme(urlTheme); }
+$("theme").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === "dark"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  const next = dark ? "light" : "dark";
+  setTheme(next);
+  try { localStorage.setItem("theme", next); } catch (e) {}
+});
+
+/* ---------- number tween ---------- */
+function tween(el, to, suffix = "", decimals = 0) {
+  const from = el._v ?? 0;
+  el._v = to;
+  const show = v => { el.textContent = (decimals ? v.toFixed(decimals) : fmt(Math.round(v))) + suffix; };
+  if (reduceMotion || from === to) return show(to);
+  const t0 = performance.now(), dur = 700;
+  const step = now => {
+    const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    show(from + (to - from) * e);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- sparklines ---------- */
+// values may contain nulls (hashtag outside the tracked top 50 in that run): drawn as gaps
+// zero: scale from 0 (honest magnitude) instead of the series' own min-max (shows trend)
+function sparkline(svg, values, {area = false, dot = true, zero = false, height} = {}) {
+  svg.replaceChildren();
+  const w = svg.clientWidth || 120, h = height || svg.clientHeight || 30, pad = 3;
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const nums = values.filter(v => v != null);
+  if (nums.length < 2) return;
+  const max = Math.max(...nums), min = zero ? 0 : Math.min(...nums);
+  const x = i => pad + (w - 2 * pad) * (values.length === 1 ? 1 : i / (values.length - 1));
+  const y = v => h - pad - (h - 2 * pad) * (max === min ? .5 : (v - min) / (max - min));
+  const segs = [];
+  let cur = [];
+  values.forEach((v, i) => { if (v == null) { if (cur.length) segs.push(cur); cur = []; } else cur.push([x(i), y(v)]); });
+  if (cur.length) segs.push(cur);
+  const accent = "var(--accent)";
+  if (area) {
+    const defs = document.createElementNS(SVGNS, "defs");
+    const gid = "g" + Math.random().toString(36).slice(2);
+    defs.innerHTML = `<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${accent}" stop-opacity=".28"/><stop offset="1" stop-color="${accent}" stop-opacity="0"/></linearGradient>`;
+    svg.append(defs);
+    for (const s of segs) {
+      if (s.length < 2) continue;
+      const p = document.createElementNS(SVGNS, "path");
+      p.setAttribute("d", `M${s[0][0]},${h - pad} ` + s.map(([a, b]) => `L${a},${b}`).join(" ") + ` L${s[s.length - 1][0]},${h - pad} Z`);
+      p.setAttribute("fill", `url(#${gid})`);
+      svg.append(p);
+    }
+  }
+  for (const s of segs) {
+    const p = document.createElementNS(SVGNS, "path");
+    p.setAttribute("d", s.map(([a, b], i) => (i ? "L" : "M") + a + "," + b).join(" "));
+    p.setAttribute("fill", "none");
+    p.setAttribute("stroke", accent);
+    p.setAttribute("stroke-width", "2");
+    p.setAttribute("stroke-linejoin", "round");
+    p.setAttribute("stroke-linecap", "round");
+    svg.append(p);
+  }
+  const last = values[values.length - 1];
+  if (dot && last != null) {
+    const c = document.createElementNS(SVGNS, "circle");
+    c.setAttribute("cx", x(values.length - 1)); c.setAttribute("cy", y(last)); c.setAttribute("r", "3.5");
+    c.setAttribute("fill", accent); c.setAttribute("stroke", "var(--surface)"); c.setAttribute("stroke-width", "2");
+    svg.append(c);
+  }
+}
+
+/* ---------- leaderboard ---------- */
+function movement(row) {
+  if (row.prev_rank == null) return ["new", "NEW"];
+  const d = row.prev_rank - row.rank;
+  if (d > 0) return ["up", "▲ " + d + " since last run"];
+  if (d < 0) return ["down", "▼ " + (-d) + " since last run"];
+  return ["same", "– no change"];
+}
+
+function makeRow(tag) {
+  const el = document.createElement("div");
+  el.className = "row";
+  el.dataset.tag = tag;
+  el.innerHTML = '<div><div class="badge num"></div></div>' +
+    '<div class="who"><div class="tag"></div><div class="move"></div></div>' +
+    '<div class="track"><div class="bar"></div></div>' +
+    '<div class="count num"></div>' +
+    '<div class="spark"><svg></svg></div>';
+  el.querySelector(".tag").textContent = tag;
+  return el;
+}
+
+function tagHistory(tag, n = 15) {
+  return (latest.history || []).slice(-n).map(h => h.counts?.[tag] ?? null);
+}
+
+function renderRows(top) {
+  const container = $("rows");
+  if (!top.length) {
+    container.innerHTML = '<div class="empty">No hashtags in the last 5 minutes. Is the producer running?</div>';
+    return;
+  }
+  const existing = new Map([...container.querySelectorAll(".row")].map(el => [el.dataset.tag, el]));
+  const before = new Map([...existing].map(([t, el]) => [t, el.getBoundingClientRect().top]));
+  const max = top[0].count;
+
+  const els = top.map(row => {
+    const el = existing.get(row.tag) || makeRow(row.tag);
+    const [cls, label] = movement(row);
+    el.dataset.rank = row.rank;
+    el.querySelector(".badge").textContent = row.rank;
+    const mv = el.querySelector(".move");
+    mv.className = "move " + cls; mv.textContent = label;
+    tween(el.querySelector(".count"), row.count);
+    el._width = (100 * row.count / max) + "%";
+    return el;
+  });
+  container.replaceChildren(...els);
+
+  els.forEach(el => {
+    const bar = el.querySelector(".bar");
+    requestAnimationFrame(() => { bar.style.width = el._width; });
+    sparkline(el.querySelector(".spark svg"), tagHistory(el.dataset.tag));
+    if (reduceMotion) return;
+    const prev = before.get(el.dataset.tag);
+    if (prev == null) { el.classList.remove("enter"); void el.offsetWidth; el.classList.add("enter"); return; }
+    const dy = prev - el.getBoundingClientRect().top;
+    if (!dy) return;
+    el.style.transition = "none";
+    el.style.transform = `translateY(${dy}px)`;
+    el.style.position = "relative"; el.style.zIndex = "1";
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.transition = "transform .7s cubic-bezier(.2, .8, .2, 1)";
+      el.style.transform = "";
+      setTimeout(() => { el.style.zIndex = ""; }, 700);
+    }));
+  });
+}
+
+/* ---------- spotlight ---------- */
+function leaderOf(snapshot) {
+  let best = null;
+  for (const [tag, c] of Object.entries(snapshot.counts || {}))
+    if (!best || c > best[1] || (c === best[1] && tag < best[0])) best = [tag, c];
+  return best && best[0];
+}
+
+function renderSpotlight(data) {
+  const lead = data.top[0];
+  if (!lead) { $("spot-tag").textContent = "–"; return; }
+  $("spot-tag").textContent = lead.tag;
+  tween($("spot-count"), lead.count);
+  tween($("spot-share"), data.hashtag_mentions ? 100 * lead.count / data.hashtag_mentions : 0, "%", 1);
+  const hist = data.history || [];
+  let streak = 0;
+  for (let i = hist.length - 1; i >= 0 && leaderOf(hist[i]) === lead.tag; i--) streak++;
+  $("spot-streak").textContent = streak >= hist.length && hist.length > 1 ? streak + "+" : Math.max(streak, 1);
+  $("spot-streak-label").textContent = (streak === 1 ? "run" : "runs") + " at the top";
+  const series = tagHistory(lead.tag, 30);
+  sparkline($("spot-chart").querySelector("svg") || $("spot-chart").appendChild(document.createElementNS(SVGNS, "svg")),
+            series, {area: true, zero: true, height: 92});
+  $("spot-from").textContent = hist.length ? clock(hist[Math.max(0, hist.length - 30)].window_end_ms) : "";
+}
+
+/* ---------- page ---------- */
+function render(data) {
+  latest = data;
+  $("window").textContent = `Sliding ${data.window_minutes}-minute window, ${clock(data.window_start_ms)} – ${clock(data.window_end_ms)} · refreshed every minute`;
+  tween($("t-tweets"), data.tweets);
+  tween($("t-mentions"), data.hashtag_mentions);
+  tween($("t-distinct"), data.distinct_hashtags);
+  $("t-job").innerHTML = `${data.job_seconds.toFixed(1)}<small>s</small>`;
+  $("stage-job").textContent = `${data.job_seconds.toFixed(1)}s per run`;
+  const hist = data.history || [];
+  sparkline($("s-tweets"), hist.map(h => h.tweets), {area: true});
+  sparkline($("s-mentions"), hist.map(h => h.hashtag_mentions), {area: true});
+  sparkline($("s-distinct"), hist.map(h => h.distinct_hashtags), {area: true});
+  sparkline($("s-job"), hist.map(h => h.job_seconds), {area: true});
+  renderSpotlight(data);
+  renderRows(data.top);
+  $("foot-updated").textContent = "Last MapReduce run " + new Date(data.generated_at_ms).toLocaleTimeString();
+}
+
+function tick() {
+  if (!latest) return;
+  const age = Math.round((Date.now() - latest.generated_at_ms) / 1000);
+  const stale = age > 2.5 * latest.slide_seconds;
+  $("status").classList.toggle("stale", stale);
+  $("status-text").textContent = (stale ? "Stale · " : "Live · ") + `updated ${age}s ago`;
+  const next = latest.window_end_ms + latest.slide_seconds * 1000 + latest.job_seconds * 1000;
+  const left = Math.max(0, Math.round((next - Date.now()) / 1000));
+  $("next").textContent = left ? `next run in ${left}s` : "running…";
+  $("ring").style.strokeDasharray = RING;
+  $("ring").style.strokeDashoffset = RING * (left / latest.slide_seconds);
+}
+
+async function poll() {
+  try {
+    const res = await fetch("/api/trending", {cache: "no-store"});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (!latest || data.generated_at_ms !== latest.generated_at_ms) render(data);
+  } catch (e) {
+    if (!latest) $("status-text").textContent = "Waiting for data…";
+  }
+  tick();
+}
+
+/* ---------- producer on/off ---------- */
+const producerBtn = $("producer");
+let producerPending = false;
+
+function renderProducer(s) {
+  const on = s.status === "streaming" || s.status === "starting";
+  producerBtn.setAttribute("aria-checked", on);
+  const text = {
+    streaming: `Producer on · ${fmt(s.rate)}/s`,
+    starting: "Producer starting…",
+    paused: "Producer paused",
+    stopped: "Producer off",
+  }[s.status] || "Producer";
+  $("producer-text").textContent = text;
+  const replaying = s.replaying ? s.replaying.replace(/^\w+ (\w+ \d+) [\d:]+ \w+ (\d+)$/, "$1 $2") : "";
+  producerBtn.title = (on ? "Click to pause the tweet producer" : "Click to start the tweet producer") +
+    (s.replaying ? `\nReplaying tweets from ${replaying}` : "");
+  $("stage-kafka").textContent = s.status === "streaming" && replaying ? `replaying ${replaying}` : 'topic "tweets"';
+}
+
+async function pollProducer() {
+  if (producerPending) return;
+  try {
+    const res = await fetch("/api/producer", {cache: "no-store"});
+    renderProducer(await res.json());
+  } catch (e) {}
+}
+
+producerBtn.addEventListener("click", async () => {
+  if (producerPending) return;
+  const turnOn = producerBtn.getAttribute("aria-checked") !== "true";
+  producerPending = true;
+  producerBtn.disabled = true;
+  $("producer-text").textContent = turnOn ? "Starting…" : "Pausing…";
+  try {
+    const res = await fetch("/api/producer/" + (turnOn ? "on" : "off"), {method: "POST"});
+    renderProducer(await res.json());
+  } catch (e) {
+    $("producer-text").textContent = "Producer: no response";
+  } finally {
+    producerPending = false;
+    producerBtn.disabled = false;
+  }
+});
+pollProducer();
+setInterval(pollProducer, 2000);
+
+/* ---------- system health (from scripts/supervisor.py) ---------- */
+async function pollSystem() {
+  const pill = $("system");
+  try {
+    const s = await (await fetch("/api/system", {cache: "no-store"})).json();
+    if (!s.supervised) { pill.hidden = true; return; }
+    const comps = Object.entries(s.components || {});
+    const notUp = comps.filter(([name, st]) => st !== "running" && !(name === "Producer" && st === "off"));
+    const starting = notUp.filter(([, st]) => st === "starting" || st === "waiting");
+    pill.hidden = false;
+    pill.classList.toggle("busy", notUp.length > 0 && starting.length === notUp.length);
+    pill.classList.toggle("down", notUp.length > starting.length);
+    const justWoke = s.woke_at_ms && Date.now() - s.woke_at_ms < 3 * 60 * 1000;
+    $("system-text").textContent = notUp.length
+      ? "Restarting " + notUp.map(([n]) => n).join(", ") + "…"
+      : (justWoke ? "Recovered after sleep" : `All ${comps.length} services running`);
+    pill.title = comps.map(([n, st]) => `${n}: ${st}`).join("\n");
+  } catch (e) { pill.hidden = true; }
+}
+pollSystem();
+setInterval(pollSystem, 5000);
+
+// coming back to the tab (or waking the laptop): refresh everything at once
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) { poll(); pollProducer(); pollSystem(); }
+});
+addEventListener("focus", () => { poll(); pollSystem(); });
+
+/* ---------- tooltip ---------- */
+$("rows").addEventListener("mousemove", e => {
+  const tip = $("tip");
+  const el = e.target.closest(".row");
+  const row = el && latest && latest.top.find(r => r.tag === el.dataset.tag);
+  if (!row) { tip.style.display = "none"; return; }
+  const share = latest.hashtag_mentions ? (100 * row.count / latest.hashtag_mentions).toFixed(1) : "0";
+  const prev = row.prev_rank == null ? "not in the previous top 10" : "previously #" + row.prev_rank;
+  const hist = tagHistory(row.tag).filter(v => v != null);
+  const lines = [
+    `${fmt(row.count)} tweets · ${share}% of hashtag mentions`,
+    `Rank ${row.rank}, ${prev}`,
+  ];
+  if (hist.length > 1) lines.push(`Last 15 runs: low ${fmt(Math.min(...hist))}, high ${fmt(Math.max(...hist))}`);
+  tip.replaceChildren();
+  const b = document.createElement("b"); b.textContent = row.tag; tip.append(b);
+  for (const l of lines) { const s = document.createElement("span"); s.textContent = l; tip.append(s); }
+  tip.style.display = "block";
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+  tip.style.top = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8) + "px";
+});
+$("rows").addEventListener("mouseleave", () => { $("tip").style.display = "none"; });
+addEventListener("resize", () => { if (latest) render(latest); });
+
+poll();
+setInterval(poll, 5000);
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

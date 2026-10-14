@@ -1,0 +1,16 @@
+# Datasets: download them as described in README.md
+# (Sentiment140 is 228 MB, over GitHub's 100 MB file limit)
+sentiment/
+airline/
+
+# Runtime state written by the producer and supervisor
+state/
+
+# Python
+__pycache__/
+*.pyc
+
+# Word/PDF documents (report and the college template) and Office lock files
+*.docx
+*.pdf
+~$*
