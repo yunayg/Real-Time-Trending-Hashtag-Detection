@@ -42,6 +42,13 @@ lower latency and no re-reading of five minutes of data each minute. That is a n
 - **Delivery is at-least-once:** the sink commits Kafka offsets only after the HDFS write succeeds, so a crash means re-reading, not losing data.
 - **No half-written files:** files are written under a temporary `_tmp` name and then renamed, so a MapReduce job never reads a partial file.
 - **Failed writes are retried:** if HDFS is unavailable the sink keeps its buffer and tries again.
+- **Crashed processes are restarted:** a supervisor checks all 8 components every 10 seconds and restarts any that stopped,
+  in dependency order (HDFS and ZooKeeper before Kafka, Kafka before the sink and producer). If one keeps failing, it backs off to one attempt every 5 minutes.
+- **The replay resumes:** the producer records its position every second, so a restarted producer continues where it left off.
+
+**What does the Producer switch on the dashboard do?**
+It pauses or resumes the tweet stream without stopping the process, using a flag file the producer checks every tick.
+While it's off, the counts fall run by run as old tweets leave the 5-minute window, which shows the sliding window working.
 
 **Can tweets be counted twice?**
 Yes, in one edge case. If the sink crashes after writing to HDFS but before committing the offset, the tweets in that last batch are re-read.

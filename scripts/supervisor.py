@@ -51,12 +51,22 @@ def env():
     return e
 
 
+def background_window():
+    """Popen arguments for a new console window that starts minimised without taking focus."""
+    if os.name != "nt":
+        return {}
+    info = subprocess.STARTUPINFO()
+    info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    info.wShowWindow = 7  # SW_SHOWMINNOACTIVE
+    return {"creationflags": subprocess.CREATE_NEW_CONSOLE, "startupinfo": info}
+
+
 def launch(title, command, cwd=config.ROOT):
-    """Start a command in its own console window, like the start scripts do.
+    """Start a command in its own minimised console window.
     Passed as one string: a list would make Python escape the inner quotes as \\",
-    which cmd does not understand."""
-    flags = subprocess.CREATE_NEW_CONSOLE if os.name == "nt" else 0
-    subprocess.Popen('cmd /k "title %s && %s"' % (title, command), cwd=cwd, env=env(), creationflags=flags)
+    which cmd does not understand. /c (not /k) closes the window if the program exits,
+    so a crash does not leave a dead window behind; the supervisor restarts it."""
+    subprocess.Popen('cmd /c "title %s && %s"' % (title, command), cwd=cwd, env=env(), **background_window())
 
 
 def producer_command():

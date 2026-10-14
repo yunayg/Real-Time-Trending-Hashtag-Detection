@@ -79,11 +79,16 @@ def set_producer(action):
             os.remove(config.PRODUCER_PAUSE)
         if not state["running"]:
             # no producer to resume: start one where the last one stopped, in its own window
-            cmd = [sys.executable, "-u", PRODUCER, "--loop",
-                   "--rate", str(state.get("rate") or config.PRODUCER_RATE),
-                   "--skip", str(state.get("position") or 0)]
-            flags = subprocess.CREATE_NEW_CONSOLE if os.name == "nt" else 0
-            subprocess.Popen(cmd, cwd=config.ROOT, creationflags=flags)
+            command = '"%s" -u "%s" --loop --rate %d --skip %d' % (
+                sys.executable, PRODUCER, state.get("rate") or config.PRODUCER_RATE, state.get("position") or 0)
+            if os.name == "nt":  # titled console window, minimised and without taking focus
+                info = subprocess.STARTUPINFO()
+                info.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                info.wShowWindow = 7  # SW_SHOWMINNOACTIVE
+                subprocess.Popen('cmd /c "title Tweet producer && %s"' % command, cwd=config.ROOT,
+                                 creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=info)
+            else:
+                subprocess.Popen(command, shell=True, cwd=config.ROOT)
             with open(config.PRODUCER_STATE, "w") as f:
                 json.dump(dict(state, status="starting", updated_ms=int(time.time() * 1000)), f)
     else:

@@ -8,7 +8,7 @@ param([int]$Rate = 500, [int]$Skip = 0)
 $Root = Split-Path -Parent $PSScriptRoot
 
 function Start-Stage($title, $command) {
-    Start-Process cmd -WorkingDirectory $Root -ArgumentList '/k', "title $title && $command"
+    Start-Process cmd -WorkingDirectory $Root -WindowStyle Minimized -ArgumentList '/k', "title $title && $command"
 }
 
 Start-Stage 'HDFS sink (Kafka to HDFS)'   'python -u consumer\kafka_to_hdfs.py'

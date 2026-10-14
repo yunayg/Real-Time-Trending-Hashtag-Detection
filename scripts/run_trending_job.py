@@ -157,7 +157,14 @@ def main():
                          "starts in seconds) or 'yarn' (needs start-yarn.cmd)")
     args = ap.parse_args()
 
-    hdfs_client.mkdirs(RUNS_DIR)
+    # a freshly started HDFS is read-only (safe mode) for a short while: wait instead of crashing
+    while True:
+        try:
+            hdfs_client.mkdirs(RUNS_DIR)
+            break
+        except Exception as e:
+            print("%s  waiting for HDFS: %s" % (time.strftime("%H:%M:%S"), e), flush=True)
+            time.sleep(5)
     keep_awake()
     print("Computing top %d hashtags over a sliding %d-minute window every %ds (Ctrl+C to stop)" %
           (config.TOP_N, config.WINDOW_MINUTES, config.SLIDE_SECONDS), flush=True)

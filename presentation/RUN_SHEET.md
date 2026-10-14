@@ -1,4 +1,4 @@
-﻿# Demo run sheet
+# Demo run sheet
 
 ## The night before
 
@@ -6,31 +6,32 @@
 - [ ] Do one full rehearsal using the steps below, then run `scripts\stop_all.ps1 -IncludeHdfs`.
 - [ ] Bookmark http://localhost:5000/?theme=light (light mode reads better on projectors)
       and http://localhost:9870/explorer.html#/tweets (the HDFS file browser).
-- [ ] Backup screenshots are in this folder (`dashboard-light.png`, `dashboard-dark.png`) in case the live demo fails.
+- [ ] Backup screenshots are in this folder (`dashboard-light.png`, `dashboard-dark.png`, and `code\` for code snippets) in case the live demo fails.
 
 ## 15 minutes before you present
 
 The laptop has 7.7 GB of RAM and the pipeline uses about 3 GB, so close Chrome tabs, Teams and other heavy apps first.
 
-Open PowerShell in the project folder (`C:\Users\admin\OneDrive\Desktop\bda`):
+Open PowerShell in the project folder (`C:\Users\admin\OneDrive\Desktop\bda`) and run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\start_services.ps1
+powershell -ExecutionPolicy Bypass -File scripts\launch.ps1 -Skip 1220000
 ```
-This takes about 1 minute. It starts HDFS, ZooKeeper and Kafka in their own windows and should end with "Services ready".
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\start_pipeline.ps1 -Skip 1220000
-```
-This opens 4 more windows (HDFS sink, trend job, dashboard, producer) and then the dashboard in your browser.
+This does the same as the **Trending Hashtags** desktop shortcut, and also starts the replay in mid-June 2009.
 
-- **What `-Skip 1220000` does:** it starts the replay in mid-June 2009, where `#iranelection` (the Iranian election protests),
-  `#iphone` (the iPhone 3GS launch) and `#squarespace` trend. It's a better story than April, where `#followfriday` dominates.
+- **What happens:** it starts the supervisor, which brings up HDFS, ZooKeeper, Kafka and the four pipeline stages,
+  each in its own window. It then opens the dashboard. This takes about 1 to 2 minutes from a cold start.
+- **What `-Skip 1220000` does:** the replay starts on 15 June 2009, where `#iranelection` (the Iranian election protests),
+  `#iphone` (the iPhone 3GS launch) and `#squarespace` trend. That's a better story than April, where `#followfriday` dominates.
   The producer takes about 20 seconds to skip ahead before tweets start flowing.
+  Without `-Skip`, which is what the desktop shortcut does, the producer resumes where it last stopped.
 - **Wait about 5 minutes before presenting**, so the 5-minute window is full and the trend lines have a few points.
+- **Check the dashboard header:** it should say "Live", "All 8 services running" and "Producer on · 500/s".
 
-**Windows you should see:** 2 for HDFS (namenode, datanode), ZooKeeper, Kafka, HDFS sink, Trend job, Dashboard and Tweet producer.
-Don't close them. Minimise them, and arrange the producer, sink and trend job windows so you can show them.
+**Windows you should see:** 2 for HDFS (namenode, datanode), ZooKeeper, Kafka, HDFS sink, Trend job, Dashboard,
+Tweet producer, and a minimised Supervisor. Don't close them. Minimise them, and arrange the producer, sink and
+trend job windows so you can show them.
 
 ## Demo flow (about 5 minutes)
 
@@ -46,19 +47,26 @@ Don't close them. Minimise them, and arrange the producer, sink and trend job wi
    - the stat tiles (tweets in the window, mentions, distinct hashtags, job time);
    - the leaderboard: arrows for rank movement, NEW for new entries, and a sparkline of the last 15 runs per hashtag;
    - the countdown ring. Let it reach zero during your talk: the rows animate into their new order when the next run lands.
-6. **Code, if asked.** Open `mapreduce\mapper.py`, `combiner.py` and `reducer.py`. Each is about 20 lines.
+6. **Optional, the Producer switch.** Turn it off: the producer window prints "paused from the dashboard", and over the
+   next few runs the counts fall as old tweets slide out of the 5-minute window. Turn it back on to resume.
+   This shows the sliding window working. Don't leave it off before your audience sees a full leaderboard.
+7. **Optional, self-healing.** Close the HDFS sink window. Within about 10 seconds the supervisor reopens it,
+   and the header briefly shows "Restarting HDFS sink…".
+8. **Code, if asked.** Open `mapreduce\mapper.py`, `combiner.py` and `reducer.py`. Each is about 20 to 40 lines.
 
 ## If something goes wrong
 
 | Symptom | Fix |
 |---|---|
-| Dashboard says "Waiting for data" or "Stale" | Look at the Trend job window for an error. Check the producer window is still printing "sent ... tweets". |
-| Leaderboard says "No hashtags in the last 5 minutes" | The producer isn't running or is still skipping ahead. Wait 30 seconds, or restart it: `python producer\tweet_producer.py --skip 1220000` |
-| Kafka window closes straight away | Run `start_services.ps1` again. It retries Kafka automatically. |
+| Dashboard says "Waiting for data" or "Stale" | Wait for the next run (see the countdown). If it stays stale, look at the Trend job window for an error. |
+| Leaderboard says "No hashtags in the last 5 minutes" | Check the Producer switch is on. If it was just started, wait for the 20-second skip to finish. |
+| Header says "Restarting …" | The supervisor is restarting that component. Give it 10 to 40 seconds. |
+| A window closed by accident | Do nothing: the supervisor reopens it within about 10 seconds. |
+| Kafka window closes straight away | Normal after an unclean shutdown. The supervisor retries until it starts. |
 | Sink window says "HDFS write failed, retrying" | HDFS is still starting (safe mode). It recovers by itself, and nothing is lost. |
-| Browser can't reach localhost:5000 | The Dashboard window was closed. Run `python dashboard\app.py` in the project folder. |
-| Everything is broken | `scripts\stop_all.ps1 -IncludeHdfs`, then both start scripts again. That takes about 2 minutes. If there's no time, use the backup screenshots. |
-| Laptop went to sleep | Wake it. The stages recover by themselves within a minute or two. The trend job stops idle sleep while it runs, but closing the lid still sleeps. |
+| Browser can't reach localhost:5000 | The supervisor isn't running. Run `scripts\launch.ps1` or double-click the desktop shortcut. |
+| Everything is broken | `scripts\stop_all.ps1 -IncludeHdfs`, then `scripts\launch.ps1 -Skip 1220000`. That takes about 2 minutes. If there's no time, use the backup screenshots. |
+| Laptop went to sleep | Wake it. The supervisor restarts anything that stopped, and the dashboard catches up within a minute or two. |
 
 ## Afterwards
 
@@ -77,4 +85,5 @@ powershell -ExecutionPolicy Bypass -File scripts\stop_all.ps1 -IncludeHdfs
 | Kafka to HDFS delay | 10 seconds or less |
 | MapReduce job time | 5 to 12 seconds |
 | Leaderboard freshness | at most ~70 seconds behind the stream |
-| Cold start | ~1 minute for services, then the first leaderboard within a minute |
+| Recovery after a crash | about 10 seconds (supervisor checks every 10 seconds) |
+| Cold start | 1 to 2 minutes to the first leaderboard |

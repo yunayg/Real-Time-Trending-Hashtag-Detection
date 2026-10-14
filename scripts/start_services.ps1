@@ -27,7 +27,7 @@ function Wait-Port($name, $port, $seconds = 60) {
 if (Test-Port 9000) { Write-Host 'HDFS already running' }
 else {
     Write-Host 'Starting HDFS...'
-    Start-Process cmd -ArgumentList '/k', "`"$HadoopHome\sbin\start-dfs.cmd`""
+    Start-Process cmd -WindowStyle Minimized -ArgumentList '/k', "`"$HadoopHome\sbin\start-dfs.cmd`""
     Wait-Port 'HDFS NameNode' 9000 90
 }
 # A freshly started NameNode is read-only (safe mode) until the DataNode reports in.
@@ -36,7 +36,7 @@ else {
 if (Test-Port 2181) { Write-Host 'ZooKeeper already running' }
 else {
     Write-Host 'Starting ZooKeeper...'
-    Start-Process cmd -WorkingDirectory $KafkaHome -ArgumentList '/k', 'title ZooKeeper && bin\windows\zookeeper-server-start.bat config\zookeeper.properties'
+    Start-Process cmd -WorkingDirectory $KafkaHome -WindowStyle Minimized -ArgumentList '/k', 'title ZooKeeper && bin\windows\zookeeper-server-start.bat config\zookeeper.properties'
     Wait-Port 'ZooKeeper' 2181
 }
 
@@ -46,7 +46,7 @@ else {
     # for a few seconds and the new broker exits with NodeExists. Retry until it sticks.
     foreach ($attempt in 1..3) {
         Write-Host "Starting Kafka (attempt $attempt)..."
-        $kafka = Start-Process cmd -WorkingDirectory $KafkaHome -PassThru -ArgumentList '/c', 'title Kafka && bin\windows\kafka-server-start.bat config\server.properties'
+        $kafka = Start-Process cmd -WorkingDirectory $KafkaHome -WindowStyle Minimized -PassThru -ArgumentList '/c', 'title Kafka && bin\windows\kafka-server-start.bat config\server.properties'
         while (-not $kafka.HasExited -and -not (Test-Port 9092)) { Start-Sleep -Seconds 1 }
         if (Test-Port 9092) { Write-Host 'Kafka is up (port 9092)'; break }
         Start-Sleep -Seconds 8
